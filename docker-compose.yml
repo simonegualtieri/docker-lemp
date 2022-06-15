@@ -1,0 +1,54 @@
+version: '3.8'
+
+# Services
+services:
+
+  # Nginx Service
+  nginx:
+    container_name: ${PREFIX_CONTAINER}_nginx-1.20
+    image: nginx:1.20-alpine
+    build: ./.docker/nginx
+    ports:
+      - 80:80
+    volumes:
+      - ./src:/var/www/html
+      - ./.docker/nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - php
+
+  # PHP Service
+  php:
+    container_name: ${PREFIX_CONTAINER}_php-7.4
+    image: php:7.4-alpine-ext
+    build:
+      context: ./.docker/php
+      args:
+        HOST_UID: $HOST_UID
+    volumes:
+      - ./src:/var/www/html
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # MySQL Service
+  mysql:
+    container_name: ${PREFIX_CONTAINER}_mysql-5.7
+    image: mysql:5.7
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_USER_PASSWORD}
+    restart: always
+    #ports:
+      #- 3306:3306
+    volumes:
+      - ./.docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+      - mysqldata:/var/lib/mysql
+    healthcheck:
+      test: mysqladmin ping -h 127.0.0.1 -u root --password=$$MYSQL_ROOT_PASSWORD
+      interval: 5s
+      retries: 10
+
+volumes:
+    mysqldata: {}
